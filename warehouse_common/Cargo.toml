@@ -1,0 +1,31 @@
+[package]
+name = "warehouse_common"
+description = "Schema, service definitions and SDK for the Warehouse version catalog service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["service"]
+service = ["dep:zelus", "dep:utoipa-axum", "dep:axum"]
+sdk = ["service"]
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+
+zelus = { workspace = true, optional = true }
+utoipa-axum = { version = "0.2", optional = true }
+axum = { version = "0.8", optional = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -1,0 +1,49 @@
+[workspace]
+members = ["warehouse", "warehouse_common", "warehouse_resolver"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "AGPL-3.0-only"
+repository = "https://github.com/novium-dev/warehouse"
+authors = ["The Warehouse contributors"]
+
+[workspace.dependencies]
+warehouse_common = { path = "warehouse_common", default-features = false }
+warehouse_resolver = { path = "warehouse_resolver" }
+
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "fs", "net", "signal"] }
+tracing = "0.1"
+utoipa = { version = "5", features = ["chrono"] }
+
+[workspace.dependencies.reqwest]
+version = "0.13"
+default-features = false
+features = ["charset", "http2", "json", "gzip", "query", "rustls", "webpki-roots"]
+
+[workspace.dependencies.zelus]
+git = "https://github.com/0xIO32/zelus.git"
+default-features = false
+features = ["error"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+panic = "deny"
+todo = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+module_name_repetitions = "allow"
+# Upstream project names (PaperMC, FabricMC, NeoForged, CPython) are prose, not code.
+doc_markdown = "allow"
