@@ -1,9 +1,3 @@
-//! Reading and refreshing catalogs.
-
-#[allow(
-    clippy::wildcard_imports,
-    reason = "the service macro resolves error and path-variable modules from this scope"
-)]
 use super::*;
 use crate::types::catalog::{CatalogId, Manifest};
 use crate::types::java::JavaCatalog;
@@ -14,11 +8,7 @@ use zelus::service;
 
 #[service(path = "/catalog", tag = "catalog")]
 pub trait CatalogService {
-    /// Lists every catalog this instance holds, with its etag and freshness.
-    ///
-    /// A consumer polls this and refetches only the catalogs whose etag changed. It also
-    /// carries the instance's schema version, which a consumer should compare against its
-    /// own before trusting any document.
+    /// Lists every catalog this instance holds, with its schema, etag and freshness.
     #[route("", method = GET)]
     #[error()]
     async fn manifest(&self) -> Result<Manifest, _>;
@@ -43,9 +33,7 @@ pub trait CatalogService {
     #[error(catalog::{not_found, unavailable})]
     async fn runtime_catalog(&self, runtime: CatalogId) -> Result<RuntimeCatalog, _>;
 
-    /// Rebuilds a catalog now instead of waiting for its next scheduled refresh.
-    ///
-    /// Returns as soon as the refresh is queued; `GET /system/status` reports how it went.
+    /// Queues a catalog rebuild instead of waiting for its next scheduled refresh.
     #[route("/{catalog}/refresh", method = POST)]
     #[error(catalog::not_found)]
     async fn refresh_catalog(&self, catalog: CatalogId) -> Result<(), _>;

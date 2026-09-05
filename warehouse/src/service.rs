@@ -1,5 +1,3 @@
-//! The zelus service implementations and the router they are assembled into.
-
 use crate::state::Warehouse;
 use axum::Router;
 use axum::extract::Request;
@@ -25,10 +23,6 @@ use warehouse_common::{
 
 impl WarehouseServices for Warehouse {}
 
-/// Rejects requests that do not carry the configured bearer token.
-///
-/// The comparison runs over digests rather than the tokens themselves, so it does not
-/// leak the token's length or a matching prefix through timing.
 async fn authenticate(request: Request, next: Next) -> Response {
     let Some(warehouse) = request.extensions().get::<Warehouse>().cloned() else {
         tracing::error!("request reached the auth layer without shared state");
@@ -161,7 +155,6 @@ impl Warehouse {
         Some(self.catalog(id)?.held().await?.document)
     }
 
-    /// Assembles the router, wiring the authenticated group behind the bearer check.
     pub(crate) fn router(&self) -> Router {
         #[derive(utoipa::OpenApi)]
         #[openapi()]

@@ -1,5 +1,3 @@
-//! MinecraftForge's maven repository.
-
 use crate::error::ResolveError;
 use crate::maven;
 use std::collections::{HashMap, HashSet};
@@ -7,10 +5,6 @@ use warehouse_common::BuildSet;
 
 const UPSTREAM: &str = "minecraftforge";
 
-/// Resolves loader versions per Minecraft version.
-///
-/// Forge publishes one artifact per `<minecraft>-<loader>` pair, so the Minecraft
-/// version is recovered by splitting on the first dash.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

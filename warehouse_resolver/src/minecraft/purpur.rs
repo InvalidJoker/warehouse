@@ -1,5 +1,3 @@
-//! PurpurMC's v2 API.
-
 use crate::error::ResolveError;
 use crate::http;
 use crate::minecraft::build_range;
@@ -24,7 +22,6 @@ struct Builds {
     all: Vec<String>,
 }
 
-/// Resolves build numbers per Minecraft version for one Purpur project.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

@@ -1,34 +1,23 @@
-//! Catalog identifiers and the manifest listing what an instance serves.
-
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Display, Formatter};
 use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// The catalogs a Warehouse instance can serve.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, ToSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum CatalogId {
-    /// Minecraft: Java Edition server versions and their server distributions.
     Minecraft,
-    /// Minecraft proxy software (Velocity, BungeeCord).
     MinecraftProxy,
-    /// Go toolchain releases published as `library/golang` tags.
     Go,
-    /// Eclipse Temurin JDK releases published as `library/eclipse-temurin` tags.
     Java,
-    /// Node.js releases published as `library/node` tags.
     Node,
-    /// CPython releases published as `library/python` tags.
     Python,
-    /// Rust toolchain releases published as `library/rust` tags.
     Rust,
 }
 
-/// Every catalog, in a stable order.
 pub const ALL_CATALOGS: [CatalogId; 7] = [
     CatalogId::Minecraft,
     CatalogId::MinecraftProxy,
@@ -40,7 +29,6 @@ pub const ALL_CATALOGS: [CatalogId; 7] = [
 ];
 
 impl CatalogId {
-    /// The identifier as it appears in URLs and JSON.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -54,10 +42,6 @@ impl CatalogId {
         }
     }
 
-    /// Whether this catalog is sourced from Docker Hub's tag listing API.
-    ///
-    /// Docker Hub applies aggressive anonymous rate limits, so a server refreshes these
-    /// catalogs behind a shared gate rather than independently.
     #[must_use]
     pub const fn uses_docker_hub(self) -> bool {
         matches!(
@@ -73,7 +57,6 @@ impl Display for CatalogId {
     }
 }
 
-/// Returned when a string does not name a known catalog.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnknownCatalogId(pub String);
 
@@ -96,29 +79,16 @@ impl FromStr for CatalogId {
     }
 }
 
-/// What an instance currently holds, returned by `GET /catalog`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Manifest {
-    /// Schema version of the documents this instance serves.
     pub schema: u32,
-    /// One entry per catalog the instance has data for.
     pub catalogs: Vec<CatalogEntry>,
 }
 
-/// A single catalog's freshness, as advertised by the manifest.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CatalogEntry {
-    /// Which catalog this describes.
     pub id: CatalogId,
-    /// Opaque token identifying the current document.
-    ///
-    /// Send it back as `If-None-Match` to skip transferring an unchanged catalog.
     pub etag: String,
-    /// When the held document was last successfully rebuilt from upstream.
     pub updated_at: DateTime<Utc>,
-    /// Whether the last refresh attempt failed.
-    ///
-    /// A stale catalog is still served — the previous document remains valid and is
-    /// almost always more useful than an error — but a consumer may want to warn.
     pub stale: bool,
 }

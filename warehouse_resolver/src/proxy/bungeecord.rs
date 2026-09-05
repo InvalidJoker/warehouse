@@ -1,5 +1,3 @@
-//! BungeeCord builds, served by SpigotMC's Jenkins.
-
 use crate::error::ResolveError;
 use crate::http;
 use serde::Deserialize;
@@ -8,7 +6,6 @@ const UPSTREAM: &str = "spigotmc";
 const JOB: &str = "BungeeCord";
 const RESULT_SUCCESS: &str = "SUCCESS";
 
-/// How many recent builds to keep. Jenkins holds far more than anyone would pick from.
 const MAX_BUILDS: usize = 50;
 
 #[derive(Debug, Deserialize)]
@@ -23,7 +20,6 @@ struct Build {
     result: Option<String>,
 }
 
-/// Resolves successful BungeeCord build numbers, newest first.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

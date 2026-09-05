@@ -1,5 +1,3 @@
-//! The catalog documents themselves.
-
 pub mod catalog;
 pub mod document;
 pub mod java;

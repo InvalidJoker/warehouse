@@ -1,5 +1,3 @@
-//! A catalog document of any kind.
-
 use crate::types::catalog::CatalogId;
 use crate::types::java::JavaCatalog;
 use crate::types::minecraft::MinecraftCatalog;
@@ -8,43 +6,24 @@ use crate::types::runtime::RuntimeCatalog;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-/// A finished catalog document.
-///
-/// Catalogs do not share a shape — a Minecraft release and a Go release have nothing in
-/// common — so anything that handles them generically holds this instead.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum Document {
-    /// The `minecraft` catalog.
     Minecraft(Box<MinecraftCatalog>),
-    /// The `minecraft-proxy` catalog.
     Proxy(Box<ProxyCatalog>),
-    /// The `java` catalog.
     Java(Box<JavaCatalog>),
-    /// One of the `major.minor.patch` runtime catalogs.
     Runtime(Box<RuntimeCatalog>),
 }
 
-/// A stored document did not match the catalog it was stored under.
 #[derive(Debug, thiserror::Error)]
 #[error("stored document does not match catalog {catalog}: {source}")]
 pub struct DocumentMismatch {
-    /// The catalog the document was stored under.
     pub catalog: CatalogId,
-    /// Why it did not decode.
     #[source]
     pub source: serde_json::Error,
 }
 
 impl Document {
-    /// Decodes a document knowing which catalog it belongs to.
-    ///
-    /// The variants are structurally distinct but not self-describing, so the catalog id
-    /// is what picks the shape rather than a tag inside the document.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the value is not that catalog's document.
     pub fn from_value(
         catalog: CatalogId,
         value: serde_json::Value,
@@ -68,7 +47,6 @@ impl Document {
         })
     }
 
-    /// Which catalog this document belongs to.
     #[must_use]
     pub const fn catalog(&self) -> CatalogId {
         match self {
@@ -79,7 +57,6 @@ impl Document {
         }
     }
 
-    /// When the document was built from upstream.
     #[must_use]
     pub const fn updated_at(&self) -> DateTime<Utc> {
         match self {
@@ -90,7 +67,6 @@ impl Document {
         }
     }
 
-    /// The Minecraft catalog, when this is one.
     #[must_use]
     pub const fn as_minecraft(&self) -> Option<&MinecraftCatalog> {
         match self {
@@ -99,7 +75,6 @@ impl Document {
         }
     }
 
-    /// The proxy catalog, when this is one.
     #[must_use]
     pub const fn as_proxy(&self) -> Option<&ProxyCatalog> {
         match self {
@@ -108,7 +83,6 @@ impl Document {
         }
     }
 
-    /// The Java catalog, when this is one.
     #[must_use]
     pub const fn as_java(&self) -> Option<&JavaCatalog> {
         match self {
@@ -117,7 +91,6 @@ impl Document {
         }
     }
 
-    /// The runtime catalog, when this is one.
     #[must_use]
     pub const fn as_runtime(&self) -> Option<&RuntimeCatalog> {
         match self {

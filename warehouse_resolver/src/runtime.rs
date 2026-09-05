@@ -1,5 +1,3 @@
-//! Builds the language runtime catalogs from Docker Hub official image tags.
-
 use crate::docker::DockerGate;
 use crate::error::ResolveError;
 use chrono::Utc;
@@ -9,10 +7,8 @@ use warehouse_common::{
 
 const UPSTREAM: &str = "dockerhub";
 
-/// Node.js releases below this are unsupported and cluttered the list.
 const NODE_MINIMUM_MAJOR: u16 = 12;
 
-/// The Docker Hub official image backing each runtime catalog.
 const fn image(id: CatalogId) -> Option<&'static str> {
     match id {
         CatalogId::Go => Some("golang"),
@@ -24,11 +20,6 @@ const fn image(id: CatalogId) -> Option<&'static str> {
     }
 }
 
-/// Rebuilds one of the `major.minor.patch` runtime catalogs.
-///
-/// # Errors
-///
-/// Fails if `id` is not a runtime catalog, or if Docker Hub cannot be read.
 pub async fn resolve(
     client: &reqwest::Client,
     gate: &DockerGate,
@@ -58,7 +49,7 @@ pub async fn resolve(
     })
 }
 
-fn accepted(id: CatalogId, version: Version) -> bool {
+const fn accepted(id: CatalogId, version: Version) -> bool {
     match id {
         CatalogId::Node => version.major >= NODE_MINIMUM_MAJOR,
         CatalogId::Python => version.major > 3 || (version.major == 3 && version.minor >= 3),
@@ -66,14 +57,6 @@ fn accepted(id: CatalogId, version: Version) -> bool {
     }
 }
 
-/// Rebuilds the `java` catalog.
-///
-/// Temurin tags do not parse as a version triple, so this catalog has its own shape:
-/// releases grouped by feature version, newest first within each group.
-///
-/// # Errors
-///
-/// Fails if Docker Hub cannot be read or lists no parseable Temurin tag.
 pub async fn resolve_java(
     client: &reqwest::Client,
     gate: &DockerGate,
@@ -113,7 +96,6 @@ pub async fn resolve_java(
     })
 }
 
-/// Temurin publishes JDK images as `21.0.5_11-jdk` and `8u422-b05`.
 fn parse_temurin_tag(tag: &str) -> Option<JavaVersion> {
     let candidate = tag.strip_suffix("-jdk").unwrap_or(tag);
     candidate.parse().ok()

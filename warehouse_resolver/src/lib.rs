@@ -1,15 +1,3 @@
-//! Rebuilds Warehouse catalogs from their upstream sources.
-//!
-//! Each catalog has one entry point that performs every request it needs and returns a
-//! finished document. Resolvers hold no state beyond the shared HTTP client and the
-//! Docker Hub gate, so a caller decides entirely on its own when to refresh what.
-//!
-//! # The identifier invariant
-//!
-//! A resolver may only emit version identifiers. It must never place a download URL, an
-//! image reference or a checksum into a catalog — see the crate documentation of
-//! `warehouse_common` for why. Upstream URLs are constants inside this crate and stay here.
-
 pub mod docker;
 pub mod error;
 mod http;
@@ -25,12 +13,6 @@ pub use http::client;
 use warehouse_common::CatalogId;
 use warehouse_common::types::document::Document;
 
-/// Rebuilds any catalog from upstream.
-///
-/// # Errors
-///
-/// Fails when the catalog's required upstreams cannot be read. Which upstreams are
-/// required varies: see the per-catalog resolvers.
 pub async fn resolve(
     client: &reqwest::Client,
     gate: &DockerGate,

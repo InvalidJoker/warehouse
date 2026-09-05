@@ -1,5 +1,3 @@
-//! PaperMC's `fill` API, which also serves Purpur-style projects.
-
 use crate::error::ResolveError;
 use crate::http;
 use crate::minecraft::build_range;
@@ -39,10 +37,6 @@ struct Build {
     channel: Channel,
 }
 
-/// Resolves stable build numbers per Minecraft version for one `fill` project.
-///
-/// Only `STABLE` and `RECOMMENDED` builds are offered; experimental channels are
-/// excluded so a consumer defaulting to the newest build never lands on one.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

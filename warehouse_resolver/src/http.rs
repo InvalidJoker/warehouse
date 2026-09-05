@@ -1,18 +1,7 @@
-//! Shared HTTP plumbing for the resolvers.
-
 use crate::error::ResolveError;
 use core::time::Duration;
 use serde::de::DeserializeOwned;
 
-/// Builds the HTTP client the resolvers share.
-///
-/// The user agent is mandatory and should identify the operator: several of the
-/// upstreams Warehouse reads are small volunteer-run projects, and an anonymous
-/// scraper is the first thing they block.
-///
-/// # Errors
-///
-/// Fails if the underlying TLS or connection pool cannot be constructed.
 pub fn client(user_agent: &str) -> Result<reqwest::Client, reqwest::Error> {
     reqwest::Client::builder()
         .user_agent(user_agent)
@@ -34,7 +23,6 @@ pub(crate) fn retry_after(response: &reqwest::Response) -> Duration {
         .map_or(Duration::from_secs(60), Duration::from_secs)
 }
 
-/// Sends a request and rejects rate limits and error statuses.
 pub(crate) async fn send(
     request: reqwest::RequestBuilder,
     upstream: &'static str,
@@ -53,11 +41,6 @@ pub(crate) async fn send(
         .map_err(upstream_error(upstream))
 }
 
-/// Sends a request and decodes the JSON body, keeping the body in the error on failure.
-///
-/// Upstream APIs change shape without warning, and a bare serde error names a path but
-/// not the payload it failed on. Carrying a bounded prefix of the body into the error
-/// turns "missing field `versions`" into something an operator can act on.
 pub(crate) async fn json<T: DeserializeOwned>(
     request: reqwest::RequestBuilder,
     upstream: &'static str,
@@ -74,7 +57,6 @@ pub(crate) async fn json<T: DeserializeOwned>(
     })
 }
 
-/// Sends a request and returns the body as text.
 pub(crate) async fn text(
     request: reqwest::RequestBuilder,
     upstream: &'static str,
@@ -89,10 +71,10 @@ pub(crate) async fn text(
 const PREVIEW_LIMIT: usize = 256;
 
 fn preview(body: &[u8]) -> String {
-    let end = body.len().min(PREVIEW_LIMIT);
-    let truncated = String::from_utf8_lossy(&body[..end]).into_owned();
-    if body.len() > end {
-        format!("{truncated}…")
+    let head = body.get(..PREVIEW_LIMIT);
+    let truncated = String::from_utf8_lossy(head.unwrap_or(body)).into_owned();
+    if head.is_some() {
+        format!("{truncated}...")
     } else {
         truncated
     }

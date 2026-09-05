@@ -1,10 +1,3 @@
-//! Guards the invariant that catalogs carry version identifiers and nothing fetchable.
-//!
-//! A catalog that could name a location — a download URL, a container image, a mirror
-//! host — would put every Warehouse instance inside its consumers' supply chain. The
-//! contract is that consumers build locations themselves from constants they control,
-//! and this test fails if a document could ever carry one instead.
-
 use chrono::Utc;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -13,10 +6,8 @@ use warehouse_common::{
     ProxyCatalog, RuntimeCatalog, SCHEMA_VERSION, VelocityVersion, Version,
 };
 
-/// Substrings that would indicate a fetchable location reached a catalog.
 const FORBIDDEN: [&str; 6] = ["://", "www.", ".com/", ".net/", ".org/", "docker.io"];
 
-/// Field names that must never exist on a catalog type, whatever they hold.
 const FORBIDDEN_KEYS: [&str; 8] = [
     "url", "uri", "href", "link", "image", "download", "mirror", "checksum",
 ];
@@ -57,87 +48,96 @@ fn assert_carries_no_locations(name: &str, document: &impl serde::Serialize) {
 
     assert!(
         failures.is_empty(),
-        "the identifier invariant is broken — a catalog may only carry version \
-         identifiers, never a location a consumer could fetch:\n  {}",
+        "the identifier invariant is broken - a catalog may only carry version identifiers, \
+         never a location a consumer could fetch:\n  {}",
         failures.join("\n  ")
     );
 }
 
-#[test]
-fn minecraft_carries_no_locations() {
-    let document = MinecraftCatalog {
-        schema: SCHEMA_VERSION,
-        updated_at: Utc::now(),
-        versions: vec![MinecraftVersion {
-            id: "1.21.4".to_owned(),
-            recommended_java: 21,
-            data_pack: true,
-            distributions: BTreeMap::from([
-                (
-                    Distribution::Paper,
-                    BuildSet::Range {
-                        prefix: None,
-                        min: 1,
-                        max: 40,
-                        excluded: [7].into_iter().collect(),
-                    },
-                ),
-                (
-                    Distribution::Fabric,
-                    BuildSet::Set {
-                        values: vec!["0.16.9".to_owned()],
-                    },
-                ),
-            ]),
-        }],
+#[cfg(test)]
+mod tests {
+    use super::{
+        BTreeMap, BTreeSet, BuildSet, CatalogId, Distribution, JavaCatalog, JavaMajor,
+        MinecraftCatalog, MinecraftVersion, ProxyCatalog, RuntimeCatalog, SCHEMA_VERSION, Utc,
+        VelocityVersion, Version, assert_carries_no_locations,
     };
 
-    assert_carries_no_locations("minecraft", &document);
-}
+    #[test]
+    fn minecraft_carries_no_locations() {
+        let document = MinecraftCatalog {
+            schema: SCHEMA_VERSION,
+            updated_at: Utc::now(),
+            versions: vec![MinecraftVersion {
+                id: "1.21.4".to_owned(),
+                recommended_java: 21,
+                data_pack: true,
+                distributions: BTreeMap::from([
+                    (
+                        Distribution::Paper,
+                        BuildSet::Range {
+                            prefix: None,
+                            min: 1,
+                            max: 40,
+                            excluded: core::iter::once(7).collect(),
+                        },
+                    ),
+                    (
+                        Distribution::Fabric,
+                        BuildSet::Set {
+                            values: vec!["0.16.9".to_owned()],
+                        },
+                    ),
+                ]),
+            }],
+        };
 
-#[test]
-fn proxy_carries_no_locations() {
-    let document = ProxyCatalog {
-        schema: SCHEMA_VERSION,
-        updated_at: Utc::now(),
-        velocity: vec![VelocityVersion {
-            id: "3.4.0-SNAPSHOT".to_owned(),
-            java: 17,
-            builds: BuildSet::Range {
-                prefix: None,
-                min: 1,
-                max: 500,
-                excluded: BTreeSet::default(),
-            },
-        }],
-        bungeecord: vec![1800, 1799],
-    };
+        assert_carries_no_locations("minecraft", &document);
+    }
 
-    assert_carries_no_locations("minecraft-proxy", &document);
-}
+    #[test]
+    fn proxy_carries_no_locations() {
+        let document = ProxyCatalog {
+            schema: SCHEMA_VERSION,
+            updated_at: Utc::now(),
+            velocity: vec![VelocityVersion {
+                id: "3.4.0-SNAPSHOT".to_owned(),
+                java: 17,
+                builds: BuildSet::Range {
+                    prefix: None,
+                    min: 1,
+                    max: 500,
+                    excluded: BTreeSet::default(),
+                },
+            }],
+            bungeecord: vec![1800, 1799],
+        };
 
-#[test]
-fn runtime_carries_no_locations() {
-    let document = RuntimeCatalog {
-        schema: SCHEMA_VERSION,
-        runtime: CatalogId::Go,
-        updated_at: Utc::now(),
-        versions: vec![Version::new(1, 24, 5)],
-    };
+        assert_carries_no_locations("minecraft-proxy", &document);
+    }
 
-    assert_carries_no_locations("go", &document);
-}
+    #[test]
+    fn runtime_carries_no_locations() {
+        let document = RuntimeCatalog {
+            schema: SCHEMA_VERSION,
+            runtime: CatalogId::Go,
+            updated_at: Utc::now(),
+            versions: vec![Version::new(1, 24, 5)],
+        };
 
-#[test]
-fn java_carries_no_locations() {
-    let document = JavaCatalog {
-        schema: SCHEMA_VERSION,
-        updated_at: Utc::now(),
-        majors: vec![JavaMajor {
-            major: 21,
-            versions: vec!["21.0.5_11".parse().expect("valid temurin version")],
-        }],
-    };
+        assert_carries_no_locations("go", &document);
+    }
 
-    assert_carries_no_locations("java", &document);
+    #[test]
+    fn java_carries_no_locations() {
+        let document = JavaCatalog {
+            schema: SCHEMA_VERSION,
+            updated_at: Utc::now(),
+            majors: vec![JavaMajor {
+                major: 21,
+                versions: vec!["21.0.5_11".parse().expect("valid temurin version")],
+            }],
+        };
+
+        assert_carries_no_locations("java", &document);
+    }
 }

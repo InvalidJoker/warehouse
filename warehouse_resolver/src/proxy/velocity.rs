@@ -1,5 +1,3 @@
-//! Velocity builds, served by PaperMC's `fill` API.
-
 use crate::error::ResolveError;
 use crate::http;
 use crate::minecraft::build_range;
@@ -10,7 +8,6 @@ use warehouse_common::VelocityVersion;
 const UPSTREAM: &str = "papermc";
 const PROJECT: &str = "velocity";
 
-/// Java version assumed when the API does not state one.
 const DEFAULT_JAVA: u8 = 21;
 
 #[derive(Debug, Deserialize)]
@@ -41,7 +38,6 @@ struct JavaVersion {
     minimum: u8,
 }
 
-/// Resolves Velocity release lines and their builds, newest first.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

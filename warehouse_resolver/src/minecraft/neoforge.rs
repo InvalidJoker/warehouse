@@ -1,5 +1,3 @@
-//! NeoForged's maven repository.
-
 use crate::error::ResolveError;
 use crate::maven;
 use crate::minecraft::build_range;
@@ -8,11 +6,6 @@ use warehouse_common::BuildSet;
 
 const UPSTREAM: &str = "neoforged";
 
-/// Resolves loader builds per Minecraft version.
-///
-/// NeoForge encodes the Minecraft version in its own: loader `21.4.60` targets Minecraft
-/// `1.21.4`. The recovered prefix travels with the build range so a consumer can rebuild
-/// the full loader version from a build number alone.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

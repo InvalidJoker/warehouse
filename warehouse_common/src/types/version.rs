@@ -1,5 +1,3 @@
-//! A three-component version, serialized as the string `"major.minor.patch"`.
-
 extern crate alloc;
 
 use core::cmp::Ordering;
@@ -8,19 +6,14 @@ use core::str::FromStr;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// A `major.minor.patch` release identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Version {
-    /// Major component.
     pub major: u16,
-    /// Minor component.
     pub minor: u16,
-    /// Patch component.
     pub patch: u16,
 }
 
 impl Version {
-    /// Builds a version from its components.
     #[must_use]
     pub const fn new(major: u16, minor: u16, patch: u16) -> Self {
         Self {
@@ -37,7 +30,6 @@ impl Display for Version {
     }
 }
 
-/// Returned when a string is not a `major.minor.patch` triple of integers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseVersionError(pub String);
 
@@ -125,8 +117,14 @@ mod tests {
 
     #[test]
     fn rejects_malformed_input() {
-        assert!("1.2".parse::<Version>().is_err());
-        assert!("1.2.3.4".parse::<Version>().is_err());
-        assert!("1.2.x".parse::<Version>().is_err());
+        "1.2"
+            .parse::<Version>()
+            .expect_err("should reject malformed input");
+        "1.2.3.4"
+            .parse::<Version>()
+            .expect_err("should reject malformed input");
+        "1.2.x"
+            .parse::<Version>()
+            .expect_err("should reject malformed input");
     }
 }

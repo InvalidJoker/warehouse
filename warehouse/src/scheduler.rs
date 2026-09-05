@@ -1,9 +1,3 @@
-//! Background refresh loops, one per catalog.
-//!
-//! Each loop owns its catalog: it is the only thing that rebuilds it, so no locking or
-//! coordination is needed and a forced refresh is just a wake-up rather than a second
-//! concurrent resolve.
-
 use crate::state::{Catalog, Warehouse};
 use crate::store::Held;
 use chrono::Utc;
@@ -12,7 +6,6 @@ use rand::Rng as _;
 use std::sync::Arc;
 use warehouse_common::{CatalogId, SCHEMA_VERSION};
 
-/// Starts one refresh loop per configured catalog.
 pub(crate) fn spawn(warehouse: &Warehouse) {
     for catalog in warehouse.catalogs.values() {
         let warehouse = warehouse.clone();
@@ -49,10 +42,6 @@ async fn run(warehouse: Warehouse, catalog: Arc<Catalog>) {
     }
 }
 
-/// How long until this catalog should be rebuilt.
-///
-/// Zero when it is missing or already past its maximum age. A jitter is added to every
-/// non-immediate delay so instances started together do not synchronize on upstream.
 async fn due_in(warehouse: &Warehouse, catalog: &Catalog) -> Duration {
     let status = catalog.status().await;
 
@@ -79,7 +68,7 @@ fn backoff(warehouse: &Warehouse, failures: u32) -> Duration {
     warehouse
         .config
         .retry_base
-        .saturating_mul(1_u32 << exponent)
+        .saturating_mul(1u32 << exponent)
         .min(warehouse.config.retry_max)
 }
 
@@ -147,7 +136,6 @@ async fn refresh(warehouse: &Warehouse, catalog: &Catalog) {
     tracing::info!(catalog = %id, %etag, "catalog refreshed");
 }
 
-/// Loads previously persisted catalogs so the server can serve immediately on startup.
 pub(crate) async fn restore(warehouse: &Warehouse) {
     for (id, catalog) in warehouse.catalogs.iter() {
         let Some(held) = warehouse.store.load(*id, SCHEMA_VERSION).await else {
@@ -166,7 +154,6 @@ pub(crate) async fn restore(warehouse: &Warehouse) {
     }
 }
 
-/// Catalogs this instance is configured to serve but has never resolved.
 pub(crate) async fn missing(warehouse: &Warehouse) -> Vec<CatalogId> {
     let mut missing = Vec::new();
     for (id, catalog) in warehouse.catalogs.iter() {

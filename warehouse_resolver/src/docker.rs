@@ -1,9 +1,3 @@
-//! Docker Hub tag listing.
-//!
-//! Anonymous Docker Hub requests are rate limited per source address, and five of the
-//! catalogs read from it. A [`DockerGate`] serializes those reads and enforces a minimum
-//! interval so refreshing several runtime catalogs in sequence cannot exhaust the quota.
-
 use crate::error::ResolveError;
 use crate::http;
 use core::time::Duration;
@@ -15,7 +9,6 @@ use url::Url;
 
 const UPSTREAM: &str = "dockerhub";
 
-/// Pages to walk per image. Tags come newest-first, so this bounds how far back we look.
 const MAX_PAGES: usize = 5;
 
 #[derive(Debug, Deserialize)]
@@ -29,7 +22,6 @@ struct Tag {
     name: String,
 }
 
-/// Serializes Docker Hub reads and keeps them under a minimum interval.
 #[derive(Debug)]
 pub struct DockerGate {
     min_interval: Duration,
@@ -37,7 +29,6 @@ pub struct DockerGate {
 }
 
 impl DockerGate {
-    /// Builds a gate that allows one listing per `min_interval`.
     #[must_use]
     pub const fn new(min_interval: Duration) -> Self {
         Self {
@@ -46,9 +37,6 @@ impl DockerGate {
         }
     }
 
-    /// Waits until another Docker Hub listing is allowed.
-    ///
-    /// Held across the request itself, so concurrent refreshes queue rather than race.
     pub async fn acquire(&self) -> DockerPermit<'_> {
         let last = self.last.lock().await;
 
@@ -65,19 +53,12 @@ impl DockerGate {
     }
 }
 
-/// Proof that a Docker Hub listing is allowed right now.
 #[derive(Debug)]
 pub struct DockerPermit<'gate> {
     last: tokio::sync::MutexGuard<'gate, Option<Instant>>,
 }
 
 impl DockerPermit<'_> {
-    /// Lists the tags of an official image, newest first.
-    ///
-    /// # Errors
-    ///
-    /// Fails if Docker Hub is unreachable, rate limits the request, or answers with
-    /// something that does not decode.
     pub async fn list_tags(
         mut self,
         client: &reqwest::Client,

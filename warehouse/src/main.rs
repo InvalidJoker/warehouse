@@ -1,9 +1,3 @@
-//! Warehouse: a version catalog service.
-//!
-//! Aggregates release metadata from upstream projects and republishes it as a small set
-//! of stable JSON documents. See the repository README for the API and the reasoning
-//! behind the design.
-
 mod config;
 mod scheduler;
 mod service;
@@ -33,10 +27,32 @@ fn main() -> ExitCode {
         }
     };
 
+    if std::env::args().nth(1).as_deref() == Some("healthcheck") {
+        return runtime.block_on(healthcheck());
+    }
+
     match runtime.block_on(serve()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             tracing::error!(error = %err, "warehouse stopped");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn healthcheck() -> ExitCode {
+    let bind = std::env::var("WAREHOUSE_BIND").unwrap_or_else(|_err| "0.0.0.0:8080".to_owned());
+    let port = bind.rsplit(':').next().unwrap_or("8080");
+    let url = format!("http://127.0.0.1:{port}/system/health");
+
+    match reqwest::get(&url).await {
+        Ok(response) if response.status().is_success() => ExitCode::SUCCESS,
+        Ok(response) => {
+            tracing::error!(status = %response.status(), "health check failed");
+            ExitCode::FAILURE
+        }
+        Err(err) => {
+            tracing::error!(error = %err, "health check could not reach the instance");
             ExitCode::FAILURE
         }
     }
@@ -52,7 +68,7 @@ enum StartupError {
     Client(#[source] reqwest::Error),
     #[error("could not bind {address}: {source}")]
     Bind {
-        address: std::net::SocketAddr,
+        address: core::net::SocketAddr,
         #[source]
         source: std::io::Error,
     },

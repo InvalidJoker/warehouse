@@ -1,5 +1,3 @@
-//! FabricMC's meta API, which QuiltMC also implements.
-
 use crate::error::ResolveError;
 use crate::http;
 use serde::Deserialize;
@@ -21,11 +19,6 @@ struct LoaderVersion {
     version: String,
 }
 
-/// Resolves loader versions per Minecraft version.
-///
-/// A loader listing that fails for a single game version is skipped rather than failing
-/// the whole catalog: these endpoints are per-version and intermittently 500, and losing
-/// one version's loaders is much better than losing every distribution's data.
 pub(crate) async fn resolve(
     client: &reqwest::Client,
     base_url: &str,

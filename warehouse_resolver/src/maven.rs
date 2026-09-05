@@ -1,5 +1,3 @@
-//! Minimal `maven-metadata.xml` reader.
-
 use crate::error::ResolveError;
 use crate::http;
 use serde::Deserialize;
@@ -20,7 +18,6 @@ struct Versions {
     version: Vec<String>,
 }
 
-/// Fetches a `maven-metadata.xml` and returns the version strings it lists.
 pub(crate) async fn versions(
     client: &reqwest::Client,
     url: &str,

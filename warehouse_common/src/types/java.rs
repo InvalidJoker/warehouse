@@ -1,5 +1,3 @@
-//! The Eclipse Temurin JDK catalog.
-
 use crate::types::catalog::CatalogId;
 use chrono::{DateTime, Utc};
 use core::cmp::Ordering;
@@ -11,37 +9,22 @@ use utoipa::ToSchema;
 
 extern crate alloc;
 
-/// A Temurin JDK release.
-///
-/// Temurin publishes two incompatible version shapes: Java 9 and later use
-/// `major.minor.patch_build` (`21.0.5_11`), while Java 8 uses `8uPATCH-bBUILD`
-/// (`8u422-b05`). Both serialize as the string the upstream itself uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JavaVersion {
-    /// Java 9 and later.
     Modern {
-        /// Feature release, for example `21`.
         major: u16,
-        /// Interim release.
         minor: u16,
-        /// Update release.
         patch: u16,
-        /// Temurin build number.
         build: u16,
     },
-    /// Java 8.
     Legacy {
-        /// Always `8`.
         major: u16,
-        /// Update number.
         patch: u16,
-        /// Temurin build number.
         build: u16,
     },
 }
 
 impl JavaVersion {
-    /// The feature release number, for example `21` or `8`.
     #[must_use]
     pub const fn major(self) -> u16 {
         match self {
@@ -84,7 +67,6 @@ impl Display for JavaVersion {
     }
 }
 
-/// Returned when a string is not a recognized Temurin version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseJavaVersionError(pub String);
 
@@ -173,31 +155,22 @@ impl utoipa::PartialSchema for JavaVersion {
 
 impl utoipa::ToSchema for JavaVersion {}
 
-/// Every tracked release of one Java feature version.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct JavaMajor {
-    /// The feature release number, for example `21`.
     pub major: u16,
-    /// Releases within that feature version, newest first.
     pub versions: Vec<JavaVersion>,
 }
 
-/// The `java` catalog document.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct JavaCatalog {
-    /// Schema version of this document.
     pub schema: u32,
-    /// When this document was built from upstream.
     pub updated_at: DateTime<Utc>,
-    /// Feature versions, newest first.
     pub majors: Vec<JavaMajor>,
 }
 
 impl JavaCatalog {
-    /// Which catalog this document belongs to.
     pub const ID: CatalogId = CatalogId::Java;
 
-    /// Looks up one feature version.
     #[must_use]
     pub fn major(&self, major: u16) -> Option<&JavaMajor> {
         self.majors.iter().find(|entry| entry.major == major)
@@ -247,7 +220,8 @@ mod tests {
     #[test]
     fn rejects_malformed_input() {
         for raw in ["", "21.0.5", "0.1.2_3", "8u422", "latest"] {
-            assert!(raw.parse::<JavaVersion>().is_err(), "accepted {raw:?}");
+            raw.parse::<JavaVersion>()
+                .expect_err("should reject malformed input");
         }
     }
 }

@@ -1,5 +1,3 @@
-//! Builds the `minecraft` catalog.
-
 mod fabric;
 mod forge;
 mod neoforge;
@@ -23,20 +21,12 @@ const QUILT_URL: &str = "https://meta.quiltmc.org/v3";
 const FORGE_URL: &str = "https://maven.minecraftforge.net";
 const NEOFORGE_URL: &str = "https://maven.neoforged.net";
 
-/// The oldest release Warehouse tracks. Everything below it is dropped.
 const OLDEST_TRACKED: &str = "1.7.10";
 
-/// The newest Java major version a release is expected to run on.
 const NEWEST_JAVA: u8 = 25;
 
-/// Java requirements, keyed by the newest release that introduced them.
-///
-/// Walking releases newest-first, the value applies from the named release downwards
-/// until the next entry takes over. Add an entry when a Minecraft release changes the
-/// Java version it needs.
 const JAVA_THRESHOLDS: [(&str, u8); 3] = [("1.21.11", 21), ("1.20.4", 17), ("1.16.5", 8)];
 
-/// The newest release that does *not* support data packs; it and everything older lack them.
 const DATA_PACK_FLOOR: &str = "1.12.2";
 
 #[derive(Debug, Deserialize)]
@@ -51,7 +41,6 @@ struct ManifestEntry {
     kind: String,
 }
 
-/// Turns a set of build numbers into a compact range, or `None` when there are none.
 pub(crate) fn build_range(prefix: Option<String>, builds: &HashSet<u16>) -> Option<BuildSet> {
     let min = *builds.iter().min()?;
     let max = *builds.iter().max()?;
@@ -67,17 +56,6 @@ pub(crate) fn build_range(prefix: Option<String>, builds: &HashSet<u16>) -> Opti
     })
 }
 
-/// Rebuilds the `minecraft` catalog from Mojang plus every distribution upstream.
-///
-/// Mojang's manifest is the spine: it decides which releases exist and in what order,
-/// and every distribution is then matched against it. A distribution that fails to
-/// resolve is dropped with a warning rather than failing the catalog — losing Purpur
-/// builds should not also cost the operator Paper and Fabric.
-///
-/// # Errors
-///
-/// Fails only if Mojang's manifest itself cannot be read, since nothing can be built
-/// without it.
 pub async fn resolve(client: &reqwest::Client) -> Result<MinecraftCatalog, ResolveError> {
     let manifest: Manifest = http::json(client.get(MOJANG_MANIFEST), "mojang").await?;
 
