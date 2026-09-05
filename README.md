@@ -1,142 +1,138 @@
 # Warehouse
 
-Warehouse aggregates release metadata from upstream projects — Mojang, PaperMC, PurpurMC,
-FabricMC, QuiltMC, MinecraftForge, NeoForged, SpigotMC's Jenkins and Docker Hub — and
-republishes it as a handful of small, stable JSON documents called **catalogs**.
+Warehouse collects release metadata from upstream projects — Mojang, PaperMC, PurpurMC,
+FabricMC, QuiltMC, MinecraftForge, NeoForged, SpigotMC and Docker Hub — and serves it as
+a few small JSON documents called **catalogs**.
 
-It exists because polling those upstreams is a poor fit for the services that need the
-data. A control plane that answers user requests should not also be a scraper: every
-replica multiplies the upstream load, a cold start blocks on a third party being up, and
-Docker Hub's anonymous rate limit is shared whether or not your processes know about each
-other. Warehouse does that work once, in one place.
+It exists so the services that need this data don't have to scrape for it. A control
+plane that answers user requests shouldn't also be a scraper: every replica multiplies
+upstream load, a cold start blocks on a third party being up, and Docker Hub's anonymous
+rate limit is per-address whether or not your processes coordinate.
 
-## What it is not
-
-Warehouse is **not on the request path** of the systems that consume it. A consumer
-fetches whole catalogs in the background and holds them in memory. If Warehouse is down,
-the consumer keeps serving the last documents it fetched — indefinitely. Plan for it as a
-freshness source, not as a dependency.
-
-## The identifier invariant
-
-**Catalogs contain version identifiers only — never download URLs, image references or
-checksums.**
-
-This is the load-bearing design rule, not a detail. Consumers build locations themselves
-from constants they control, which keeps a Warehouse instance outside their trust
-boundary: a compromised instance can offer a version that does not exist, but it can
-never point a consumer at an attacker-controlled artifact.
-
-Contributions that would place a fetchable location in a catalog will be declined,
-however convenient. `scripts/check-invariant.sh` and the tests in
-`crates/warehouse-types/tests/identifier_invariant.rs` enforce this in CI.
+Warehouse is **not on your request path**. Fetch catalogs in the background, hold them in
+memory, and keep serving the last ones you got if Warehouse goes away.
 
 ## Catalogs
 
-| id | source | contents | default max age |
-|---|---|---|---|
-| `minecraft` | Mojang, PaperMC, PurpurMC, FabricMC, QuiltMC, MinecraftForge, NeoForged | releases with per-distribution builds | 7 days |
-| `minecraft-proxy` | PaperMC, SpigotMC Jenkins | Velocity lines and BungeeCord builds | 1 day |
-| `go` `node` `python` `rust` | Docker Hub official images | `major.minor.patch` releases | 1 day |
-| `java` | Docker Hub `eclipse-temurin` | Temurin releases grouped by feature version | 1 day |
+| id | source | contents |
+|---|---|---|
+| `minecraft` | Mojang + Paper, Purpur, Fabric, Quilt, Forge, NeoForge | releases with per-distribution builds |
+| `minecraft-proxy` | PaperMC, SpigotMC | Velocity lines, BungeeCord builds |
+| `java` | Docker Hub `eclipse-temurin` | Temurin releases by feature version |
+| `go` `node` `python` `rust` | Docker Hub official images | `major.minor.patch` releases |
+
+Minecraft is rebuilt weekly, everything else daily.
+
+## Version identifiers only
+
+**Catalogs never contain download URLs, image references or checksums** — only version
+identifiers. You build locations yourself from constants you control.
+
+That keeps a Warehouse instance out of your trust boundary: a compromised instance can
+offer you a version that doesn't exist, but it can't point you at an attacker's artifact.
+Changes that would put a fetchable location in a catalog get declined; `scripts/check-invariant.sh`
+and `warehouse_common/tests/identifier_invariant.rs` enforce it in CI.
 
 ## Running it
-
-```bash
-cargo run -p warehouse-server
-```
 
 ```bash
 docker run -p 8080:8080 -v warehouse-data:/data \
   -e WAREHOUSE_TOKEN=changeme \
   -e WAREHOUSE_USER_AGENT="warehouse/0.1 (+https://example.com; ops@example.com)" \
-  ghcr.io/novium-dev/warehouse:latest
+  ghcr.io/invalidjoker/warehouse:latest
 ```
 
-Run **one instance**. Its state is fully rebuildable from upstream, consumers hold their
-own copies so a restart is invisible, and a single process is what makes the Docker Hub
-gate meaningful. Multiple replicas are safe but multiply upstream traffic for no benefit.
+Run **one instance**. Its data is fully rebuildable, consumers hold their own copies, and
+a single process is what makes the Docker Hub rate-limit gate work.
+
+Mount `/data`. Catalogs persist there, so a restart serves immediately instead of
+re-scraping every upstream.
+
+**Set `WAREHOUSE_USER_AGENT`** to something that identifies you and gives upstreams a way
+to reach you. Several of them are volunteer-run and block traffic they can't attribute.
 
 ### Configuration
 
-Everything comes from the environment; there is no configuration file. Startup fails
-naming the first variable it cannot parse.
+Environment only, no config file. Startup fails naming the first variable it can't parse.
 
 | variable | default | meaning |
 |---|---|---|
 | `WAREHOUSE_BIND` | `0.0.0.0:8080` | listen address |
-| `WAREHOUSE_TOKEN` | unset | bearer token required on every route but `/health` |
+| `WAREHOUSE_TOKEN` | unset | bearer token required on every route but `/system/health` |
 | `WAREHOUSE_DATA_DIR` | `./data` | where catalogs are persisted |
 | `WAREHOUSE_USER_AGENT` | `warehouse/<version>` | sent to every upstream |
 | `WAREHOUSE_CATALOGS` | all | comma-separated catalogs to serve |
-| `WAREHOUSE_MAX_AGE_<CATALOG>` | see table | seconds before a catalog is rebuilt |
-| `WAREHOUSE_DOCKER_MIN_INTERVAL` | `3600` | minimum spacing between Docker Hub listings |
-| `WAREHOUSE_REFRESH_JITTER` | `600` | upper bound of random delay added to refreshes |
-| `WAREHOUSE_RETRY_BASE` | `60` | delay after the first failure, doubled per failure |
+| `WAREHOUSE_MAX_AGE_<CATALOG>` | see above | seconds before a catalog is rebuilt |
+| `WAREHOUSE_DOCKER_MIN_INTERVAL` | `3600` | minimum spacing between Docker Hub reads |
+| `WAREHOUSE_REFRESH_JITTER` | `600` | random delay added to refreshes |
+| `WAREHOUSE_RETRY_BASE` | `60` | delay after first failure, doubled per failure |
 | `WAREHOUSE_RETRY_MAX` | `3600` | ceiling for that backoff |
 | `WAREHOUSE_LOG` | `warehouse=info` | `tracing` filter |
 
-### Being a good upstream citizen
-
-Several of these APIs are run by volunteers. Before you deploy:
-
-- **Set `WAREHOUSE_USER_AGENT`** to something identifying you, with a way to make
-  contact. Anonymous scrapers are the first thing to get blocked.
-- **Leave the intervals alone** unless you have a reason. The defaults are already far
-  more frequent than these projects publish releases.
-- Warehouse honours `Retry-After` and backs off exponentially on failure. Do not work
-  around that with an external retry loop.
-
 ## API
 
-All routes but `/health` require `Authorization: Bearer <token>` when `WAREHOUSE_TOKEN`
-is set.
+Swagger UI at `/docs`, OpenAPI at `/docs/openapi.json`. Full schema: [docs/schema.md](docs/schema.md).
 
 | route | purpose |
 |---|---|
-| `GET /health` | liveness; unauthenticated, and healthy before anything is resolved |
-| `GET /catalog` | manifest: every held catalog with its etag, age and staleness |
-| `GET /catalog/{id}` | the catalog document; supports `If-None-Match` |
-| `GET /status` | per-catalog refresh state, last error and next attempt |
-| `POST /catalog/{id}/refresh` | asks the refresh loop to run now; returns `202` |
+| `GET /system/health` | liveness; public, and healthy before anything is resolved |
+| `GET /system/status` | per-catalog freshness, last error, next attempt |
+| `GET /catalog` | manifest: schema, etag and staleness per catalog |
+| `GET /catalog/minecraft` | the Minecraft catalog |
+| `GET /catalog/minecraft-proxy` | the proxy catalog |
+| `GET /catalog/java` | the Temurin catalog |
+| `GET /catalog/runtime/{go\|node\|python\|rust}` | a runtime catalog |
+| `POST /catalog/{id}/refresh` | rebuild now instead of waiting |
 
-Pass `?schema=N` to state the schema you were built against. An instance serving a
-different one answers `409 Conflict` with an `X-Warehouse-Schema` header rather than a
-body you would misread — see [docs/schema.md](docs/schema.md).
+Poll `GET /catalog` and refetch only the catalogs whose `etag` changed.
 
-## Consuming it from Rust
+## Using it from Rust
 
 ```toml
-warehouse-types = { version = "0.1", features = ["client"] }
+warehouse_common = { git = "https://github.com/InvalidJoker/warehouse.git", features = ["sdk"] }
 ```
 
 ```rust
-use warehouse_types::{CatalogId, MinecraftCatalog, client::{Client, Fetched}};
+use warehouse_common::sdk::WarehouseSDK;
+use warehouse_common::service::catalog::CatalogService as _;
 
-let client = Client::new("https://warehouse.internal", Some(token))?;
+let client = WarehouseSDK::new(url, Some(token))?;
 
-// Hold the etag and pass it back; unchanged catalogs cost one round trip and no body.
-if let Fetched::Changed { document, etag } =
-    client.catalog::<MinecraftCatalog>(CatalogId::Minecraft, previous_etag.as_deref()).await?
-{
-    // Swap `document` into your in-process cache and keep `etag` for next time.
+let manifest = client.manifest().await?;
+if manifest.schema != warehouse_common::SCHEMA_VERSION {
+    // the instance serves a different schema; keep what you already have
 }
+
+let catalog = client.minecraft_catalog().await?;
 ```
 
-## Layout
+The SDK and the server are generated from the same service definitions, so routes can't
+drift between them.
 
-- `crates/warehouse-types` — the public schema, plus the client behind the `client`
-  feature. This is the crate consumers depend on.
-- `crates/warehouse-resolver` — the upstream fetchers. Every upstream URL in the project
-  is a constant in here.
-- `crates/warehouse-server` — the binary: refresh loops, persistence and the HTTP API.
+## Development
+
+```bash
+cargo run -p warehouse
+cargo test --workspace --all-features
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features
+./scripts/check-invariant.sh
+```
+
+No database, no cache — nothing to stand up first.
+
+Three crates: `warehouse_common` (schema, service definitions, SDK — what consumers
+depend on), `warehouse_resolver` (upstream fetchers; every upstream URL lives here), and
+`warehouse` (the binary).
+
+See [CLAUDE.md](CLAUDE.md) for architecture and conventions.
 
 ## Known gaps
 
-- The Docker Hub catalogs read the five newest tag pages per image, so they hold recent
-  releases rather than full history. Older releases fall off as new ones are published.
-- Minecraft releases older than `1.7.10` are not tracked.
+- Docker Hub catalogs read the five newest tag pages per image, so they hold recent
+  releases rather than full history.
+- Minecraft releases older than `1.7.10` aren't tracked.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+AGPL-3.0-only. See [LICENSE](LICENSE).

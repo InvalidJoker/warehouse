@@ -29,7 +29,7 @@ pub(crate) struct Config {
 const DEFAULT_USER_AGENT: &str = concat!(
     "warehouse/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://github.com/novium-dev/warehouse)"
+    " (+https://github.com/InvalidJoker/warehouse)"
 );
 
 impl Config {
