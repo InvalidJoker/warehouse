@@ -35,8 +35,13 @@ There is **no database and no Valkey** — nothing to stand up before building. 
 Swagger UI is at `/docs`, the OpenAPI document at `/docs/openapi.json`.
 
 ```bash
-docker build -t novium/warehouse:latest .
+docker build -t warehouse:local .
 ```
+
+CI publishes `ghcr.io/invalidjoker/warehouse` on every push to `main` (as `latest` and
+`main`) and on `v*` tags (as semver). Pull requests build the image but never push it, so
+a fork cannot publish. Both architectures are built on native runners rather than under
+QEMU, then merged into one manifest by digest.
 
 ## The identifier invariant
 
@@ -101,4 +106,6 @@ Run `cargo fmt --all`, then `cargo clippy --workspace --all-targets --all-featur
 
 - The Docker Hub catalogs read the five newest tag pages per image, so they hold recent releases rather than full history. This was inherited from the backend's original implementation.
 - Minecraft releases older than `1.7.10` are not tracked.
-- `docs/schema.md` and the CI workflow are not written yet.
+- Images carry no build provenance or SBOM: `push-by-digest`, which the multi-arch
+  workflow needs, cannot be combined with inline attestations. Attesting the merged
+  manifest afterwards would fix this.

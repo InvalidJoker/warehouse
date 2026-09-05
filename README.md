@@ -109,6 +109,19 @@ let catalog = client.minecraft_catalog().await?;
 The SDK and the server are generated from the same service definitions, so routes can't
 drift between them.
 
+### Images
+
+`ghcr.io/invalidjoker/warehouse` is published automatically for `linux/amd64` and
+`linux/arm64`:
+
+| tag | tracks |
+|---|---|
+| `latest`, `main` | the latest commit on `main` |
+| `1.2.3`, `1.2` | the matching `v*` tag |
+| `sha-<commit>` | one exact commit |
+
+Pin a version tag in production; `latest` moves.
+
 ## Development
 
 ```bash
