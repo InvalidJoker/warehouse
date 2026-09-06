@@ -30,8 +30,8 @@ identifiers. You build locations yourself from constants you control.
 
 That keeps a Warehouse instance out of your trust boundary: a compromised instance can
 offer you a version that doesn't exist, but it can't point you at an attacker's artifact.
-Changes that would put a fetchable location in a catalog get declined; `scripts/check-invariant.sh`
-and `warehouse_common/tests/identifier_invariant.rs` enforce it in CI.
+Changes that would put a fetchable location in a catalog get declined;
+`warehouse_common/tests/identifier_invariant.rs` enforces it in CI.
 
 ## Running it
 
@@ -129,7 +129,6 @@ cargo run -p warehouse
 cargo test --workspace --all-features
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features
-./scripts/check-invariant.sh
 ```
 
 No database, no cache — nothing to stand up first.

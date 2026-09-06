@@ -25,9 +25,6 @@ cargo test --workspace --all-features
 # and is just as strict)
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features
-
-# The identifier invariant (see below) has its own check
-./scripts/check-invariant.sh
 ```
 
 There is **no database and no Valkey** — nothing to stand up before building. Unlike hosting-system, `cargo check` needs no live services.
@@ -37,6 +34,14 @@ Swagger UI is at `/docs`, the OpenAPI document at `/docs/openapi.json`.
 ```bash
 docker build -t warehouse:local .
 ```
+
+The image is built with `cargo-chef`: the planner stage distils the workspace into a
+dependency recipe, so a source-only change reuses the cooked dependency layer instead of
+rebuilding every crate. The build runs on an Alpine toolchain, where the host triple is
+already `*-unknown-linux-musl` and musl links statically, so no `--target` is pinned and
+the same file produces an amd64 or an arm64 image depending on the runner. The result is
+a static binary in a `scratch` runtime with the cert bundle beside it; there is no shell
+and no package manager in the published image.
 
 CI publishes `ghcr.io/invalidjoker/warehouse` on every push to `main` (as `latest` and
 `main`) and on `v*` tags (as semver). Pull requests build the image but never push it, so
@@ -49,10 +54,7 @@ QEMU, then merged into one manifest by digest.
 
 This is the load-bearing design rule of the project, not a detail. Consumers build locations themselves from constants they control, which keeps a Warehouse instance *outside* their trust boundary: a compromised instance can offer a version that does not exist, but it can never point a consumer at an attacker-controlled artifact. Since catalogs feed `ServerBuildPayload` in the backend — docker images and download URLs — breaking this would turn Warehouse into a supply-chain vector.
 
-Reject any change that would place a fetchable location in a catalog, however convenient it seems. Two things enforce it, and both must keep passing:
-
-- `scripts/check-invariant.sh` greps `warehouse_common/src/types` for URL literals and location-shaped field names.
-- `warehouse_common/tests/identifier_invariant.rs` walks a serialized document of every catalog type.
+Reject any change that would place a fetchable location in a catalog, however convenient it seems. `warehouse_common/tests/identifier_invariant.rs` enforces it: it serializes a document of every catalog type and walks the JSON, failing on a URL-shaped value or a location-shaped field name. It runs under `cargo test`, so CI covers it with everything else.
 
 Upstream URLs live in `warehouse_resolver` as constants and stay there.
 
@@ -100,7 +102,7 @@ This is a departure from normal open-source Rust practice, where a published cra
 
 ### Before finishing a change
 
-Run `cargo fmt --all`, then `cargo clippy --workspace --all-targets --all-features`, then `./scripts/check-invariant.sh`. All three are enforced in CI and the clippy config is strict, so a change isn't done until they pass clean.
+Run `cargo fmt --all`, then `cargo clippy --workspace --all-targets --all-features`, then `cargo test --workspace --all-features`. All three are enforced in CI and the clippy config is strict, so a change isn't done until they pass clean.
 
 ## Known gaps
 

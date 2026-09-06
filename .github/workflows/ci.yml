@@ -36,10 +36,6 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-features
 
-      # Catalogs must never carry a fetchable location. See the README.
-      - name: Identifier invariant
-        run: ./scripts/check-invariant.sh
-
   image:
     name: Image (${{ matrix.platform }})
     needs: check
