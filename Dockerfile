@@ -12,8 +12,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 
-# build-base, cmake and perl are for aws-lc-sys, which rustls builds from C sources.
-RUN apk add --no-cache build-base cmake perl git ca-certificates
+# build-base, cmake and perl are for aws-lc-sys, which rustls builds from C sources;
+# curl is for utoipa-swagger-ui, whose build script downloads the Swagger UI bundle.
+RUN apk add --no-cache build-base cmake perl git curl ca-certificates
 
 # The recipe is the dependency graph alone, so this layer is reused until a manifest or
 # the lockfile changes - a source-only edit never refetches or rebuilds a crate.
